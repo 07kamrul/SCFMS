@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Env / secrets
+.env
+*.env
+!.env.example
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Docker volumes (local)
+pg_data/
+minio_data/
+
+# Flutter (added in later milestones)
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins*
