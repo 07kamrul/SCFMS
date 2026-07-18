@@ -10,6 +10,7 @@ from app.models.user import User
 from app.permissions.roles import Permission, has_permission
 from app.schemas.common import Envelope, ok
 from app.schemas.location import (
+    LocationConsentPublic,
     LocationPointCreate,
     LocationPointPublic,
     LocationStatusPublic,
@@ -20,6 +21,20 @@ from app.services.location_service import LocationService
 router = APIRouter(prefix="/locations", tags=["locations"])
 
 _VIEW_TEAM = (Permission.TRACKING_VIEW_ALL, Permission.TRACKING_VIEW_ASSIGNED)
+
+
+@router.post("/consent", response_model=Envelope[LocationConsentPublic], status_code=201)
+def grant_location_consent(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.LOCATION_SHARE)),
+) -> Envelope[LocationConsentPublic]:
+    """Must be called once before this user's device can submit any location
+    point (see LocationService.submit_point). Revisitable — consent can be
+    re-granted after being revoked by an admin clearing the field."""
+    user = LocationService(db).record_consent(
+        company_id=current_user.company_id, user_id=current_user.id
+    )
+    return ok(LocationConsentPublic(consented_at=user.location_consent_at))
 
 
 @router.post("", response_model=Envelope[LocationStatusPublic], status_code=201)

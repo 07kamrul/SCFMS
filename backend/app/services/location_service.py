@@ -5,16 +5,19 @@ Status priority (first match wins):
   2. UNKNOWN             — no location point ever submitted
   3. OFFLINE             — latest point older than the company's
                            offline_after_minutes
-  4. NO_ASSIGNED_PROJECT — user holds no active assignment right now (a
+  4. OUTSIDE_TRACKING_HOURS — the point's recorded_at falls outside the
+                           company's configured tracking-hours window
+                           (0-24 default = unrestricted, opt-in only)
+  5. NO_ASSIGNED_PROJECT — user holds no active assignment right now (a
                            precondition check, not a location check)
-  5. INSIDE_ASSIGNED / NEAR_ASSIGNED — relative to the user's own assigned
+  6. INSIDE_ASSIGNED / NEAR_ASSIGNED — relative to the user's own assigned
                            projects (near = within near_distance_meters,
                            computed via a geography cast for true meters)
-  6. INSIDE_OTHER_ACCESSIBLE / INSIDE_OTHER_UNAUTHORIZED — inside a different
+  7. INSIDE_OTHER_ACCESSIBLE / INSIDE_OTHER_UNAUTHORIZED — inside a different
      company project. Split by whether the TRACKED user's own role holds
      PROJECT_VIEW_ALL — an Owner/HR wandering into another site isn't really
      "unauthorized" for them the way it would be for a regular Employee.
-  7. OUTSIDE_ASSIGNED    — none of the above
+  8. OUTSIDE_ASSIGNED    — none of the above
 """
 from __future__ import annotations
 
@@ -23,11 +26,12 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ValidationError
 from app.models.enums import LocationStatus
 from app.models.location_point import LocationPoint
 from app.models.user import User
 from app.permissions.roles import Permission, has_permission
+from app.repositories.activity_log_repo import ActivityLogRepository
 from app.repositories.assignment_repo import AssignmentRepository
 from app.repositories.company_repo import CompanyRepository
 from app.repositories.location_point_repo import LocationPointRepository
@@ -45,10 +49,35 @@ class LocationService:
         self.projects = ProjectRepository(db)
         self.users = UserRepository(db)
         self.companies = CompanyRepository(db)
+        self.activity_logs = ActivityLogRepository(db)
+
+    def record_consent(self, *, company_id: uuid.UUID, user_id: uuid.UUID) -> User:
+        user = self.users.get_for_company(user_id, company_id)
+        if user is None:
+            raise NotFoundError("User not found.")
+        user.location_consent_at = datetime.now(timezone.utc)
+        self.activity_logs.log(
+            company_id=company_id,
+            actor_user_id=user_id,
+            action="location.consent_granted",
+            entity_type="user",
+            entity_id=user_id,
+        )
+        self.db.commit()
+        self.db.refresh(user)
+        return user
 
     def submit_point(
         self, *, company_id: uuid.UUID, user_id: uuid.UUID, payload: LocationPointCreate
     ) -> LocationPoint:
+        user = self.users.get_for_company(user_id, company_id)
+        if user is None:
+            raise NotFoundError("User not found.")
+        if user.location_consent_at is None:
+            raise ValidationError(
+                "Location-tracking consent has not been recorded for this user.",
+                error_code="consent_required",
+            )
         point = LocationPoint(
             company_id=company_id,
             user_id=user_id,
@@ -111,6 +140,16 @@ class LocationService:
             latest = latest_by_user.get(user.id)
             status, latest = self._compute_status(company_id=company_id, user=user, latest=latest)
             results.append((user, status, latest))
+
+        self.activity_logs.log(
+            company_id=company_id,
+            actor_user_id=current_user_id,
+            action="location.team_status_viewed",
+            entity_type="company",
+            entity_id=company_id,
+            context={"visible_user_count": len(results)},
+        )
+        self.db.commit()
         return results
 
     def _compute_status(
@@ -128,6 +167,13 @@ class LocationService:
         )
         if latest.recorded_at < stale_cutoff:
             return LocationStatus.OFFLINE, latest
+
+        # Company-configurable work-hours window (0-24 default = unrestricted).
+        # Evaluated against the point's own recorded_at hour, not "now" — the
+        # policy is about when tracking happened, not when it's being viewed.
+        point_hour = latest.recorded_at.astimezone(timezone.utc).hour
+        if not (settings_row.tracking_start_hour <= point_hour < settings_row.tracking_end_hour):
+            return LocationStatus.OUTSIDE_TRACKING_HOURS, latest
 
         assigned_ids = self.assignments.active_project_ids_for_user(
             company_id=company_id, user_id=user.id

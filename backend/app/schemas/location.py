@@ -57,6 +57,10 @@ class LocationStatusPublic(BaseModel):
     point: LocationPointPublic | None
 
 
+class LocationConsentPublic(BaseModel):
+    consented_at: datetime
+
+
 class TeamMemberStatus(BaseModel):
     user_id: uuid.UUID
     full_name: str

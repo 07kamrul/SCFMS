@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
+from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.models.location_point import LocationPoint
 from app.repositories.base import BaseRepository
@@ -40,3 +41,12 @@ class LocationPointRepository(BaseRepository[LocationPoint]):
         )
         rows = self.db.execute(stmt).scalars().all()
         return {row.user_id: row for row in rows}
+
+    def delete_older_than(self, *, company_id: uuid.UUID, cutoff: datetime) -> int:
+        """Retention enforcement: purge points recorded before ``cutoff`` for
+        one company. Returns the number of rows deleted."""
+        stmt = delete(LocationPoint).where(
+            LocationPoint.company_id == company_id, LocationPoint.recorded_at < cutoff
+        )
+        result = self.db.execute(stmt)
+        return result.rowcount or 0

@@ -51,8 +51,11 @@ class CompanySettings(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Integer, nullable=False, default=settings.DEFAULT_NEAR_DISTANCE_METERS
     )
     tracking_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    tracking_start_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=6)   # local hour 0-23
-    tracking_end_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
+    # Unrestricted (0-24) by default — a company opts into a narrower work-hours
+    # window explicitly; nobody should get surprise "outside tracking hours"
+    # rejections from a default they never configured.
+    tracking_start_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=0)   # local hour 0-23
+    tracking_end_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=24)    # exclusive upper bound, 1-24
     location_retention_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
     allow_multiple_devices: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # A user's latest point older than this is reported as OFFLINE rather than

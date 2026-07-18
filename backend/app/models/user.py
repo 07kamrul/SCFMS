@@ -76,6 +76,12 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Explicit, revisitable consent to location tracking. Required before any
+    # location point can be submitted on this user's behalf (see LocationService).
+    location_consent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     company: Mapped["Company"] = relationship(back_populates="users")
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

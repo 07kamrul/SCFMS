@@ -56,6 +56,7 @@ def test_employee_submit_inside_assigned_returns_status(client, company, db):
     make_assignment(db, company=company, project=project, user=emp, role=AssignmentRole.EMPLOYEE)
     db.commit()
     headers = auth_header(client, email="emp@trackco.com", password="password123")
+    assert client.post("/api/v1/locations/consent", headers=headers).status_code == 201
 
     lat, lng = INSIDE_LATLNG
     resp = client.post(
@@ -68,6 +69,53 @@ def test_employee_submit_inside_assigned_returns_status(client, company, db):
     assert data["status"] == "inside_assigned"
     assert data["point"]["lat"] == pytest.approx(lat)
     assert data["point"]["lng"] == pytest.approx(lng)
+
+
+def test_submit_without_consent_is_rejected(client, company, db):
+    project = make_project(db, company=company, name="Site A2", boundary_geojson=SAMPLE_POLYGON_GEOJSON)
+    emp = _user(db, company, "emp@trackco.com")
+    make_assignment(db, company=company, project=project, user=emp, role=AssignmentRole.EMPLOYEE)
+    db.commit()
+    headers = auth_header(client, email="emp@trackco.com", password="password123")
+
+    lat, lng = INSIDE_LATLNG
+    resp = client.post(
+        "/api/v1/locations",
+        headers=headers,
+        json={"lat": lat, "lng": lng, "recorded_at": datetime.now(timezone.utc).isoformat()},
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["error"]["code"] == "consent_required"
+
+
+def test_status_outside_tracking_hours_when_company_configures_a_window(client, company, db):
+    """The window is computed relative to the real current UTC hour (rather
+    than a fixed constant) so the test is deterministic regardless of when it
+    runs: the point must stay recent enough to not trip the OFFLINE check
+    first, which pins its hour to (approximately) the current hour."""
+    project = make_project(db, company=company, name="Site H", boundary_geojson=SAMPLE_POLYGON_GEOJSON)
+    emp = _user(db, company, "emp@trackco.com")
+    make_assignment(db, company=company, project=project, user=emp)
+
+    recent_point = datetime.now(timezone.utc) - timedelta(minutes=1)
+    current_hour = recent_point.hour
+    excluded_start = 22 if current_hour == 23 else (current_hour + 12) % 24
+    excluded_end = excluded_start + 1
+
+    owner_headers = auth_header(client, email="owner@trackco.com", password="password123")
+    assert client.patch(
+        "/api/v1/companies/settings",
+        headers=owner_headers,
+        json={"tracking_start_hour": excluded_start, "tracking_end_hour": excluded_end},
+    ).status_code == 200
+
+    make_location_point(
+        db, company=company, user=emp, lat=INSIDE_LATLNG[0], lng=INSIDE_LATLNG[1], recorded_at=recent_point
+    )
+    db.commit()
+    headers = auth_header(client, email="emp@trackco.com", password="password123")
+    resp = client.get("/api/v1/locations/me", headers=headers)
+    assert resp.json()["data"]["status"] == "outside_tracking_hours"
 
 
 def test_status_unknown_without_any_point(client, company, db):
@@ -200,6 +248,46 @@ def test_owner_team_view_sees_everyone_regardless_of_assignment(client, company,
     names = {row["full_name"] for row in resp.json()["data"]}
     # HR, PE, SE, Employee should all appear even though only emp is assigned.
     assert {"Hr", "Pe", "Se", "Emp"} <= names
+
+
+def test_team_status_view_writes_an_activity_log_entry(client, company, db):
+    from app.models.activity_log import ActivityLog
+
+    project = make_project(db, company=company, name="Site I", boundary_geojson=SAMPLE_POLYGON_GEOJSON)
+    emp = _user(db, company, "emp@trackco.com")
+    make_assignment(db, company=company, project=project, user=emp)
+    db.commit()
+    headers = auth_header(client, email="owner@trackco.com", password="password123")
+    assert client.get("/api/v1/locations/team", headers=headers).status_code == 200
+
+    entries = db.query(ActivityLog).filter_by(
+        company_id=company.id, action="location.team_status_viewed"
+    ).all()
+    assert len(entries) == 1
+
+
+def test_retention_cleanup_purges_points_past_company_retention_window(company, db):
+    from app.jobs.retention_cleanup import purge
+
+    emp = _user(db, company, "emp@trackco.com")
+    old_point = make_location_point(
+        db, company=company, user=emp, lat=INSIDE_LATLNG[0], lng=INSIDE_LATLNG[1],
+        recorded_at=datetime.now(timezone.utc) - timedelta(days=200),
+    )
+    recent_point = make_location_point(
+        db, company=company, user=emp, lat=INSIDE_LATLNG[0], lng=INSIDE_LATLNG[1],
+        recorded_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    db.commit()
+
+    deleted = purge(db)
+    db.commit()
+    assert deleted >= 1
+
+    from app.models.location_point import LocationPoint
+    remaining_ids = {p.id for p in db.query(LocationPoint).filter_by(company_id=company.id).all()}
+    assert old_point.id not in remaining_ids
+    assert recent_point.id in remaining_ids
 
 
 def test_project_engineer_team_view_scoped_to_shared_projects(client, company, db):

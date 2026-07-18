@@ -47,6 +47,7 @@ class LocationStatus(str, enum.Enum):
     NO_ASSIGNED_PROJECT = "no_assigned_project"
     LOCATION_DISABLED = "location_disabled"
     OFFLINE = "offline"
+    OUTSIDE_TRACKING_HOURS = "outside_tracking_hours"
     UNKNOWN = "unknown"
 
 
