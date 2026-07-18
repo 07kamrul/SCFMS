@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 
 from sqlalchemy import func, or_, select
 
-from app.models.enums import Role
+from app.models.enums import Role, UserStatus
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -43,6 +44,19 @@ class UserRepository(BaseRepository[User]):
         if not conditions:
             return []
         stmt = select(User).where(or_(*conditions))
+        return list(self.db.execute(stmt).scalars().all())
+
+    def list_by_ids(
+        self, *, company_id: uuid.UUID, user_ids: Iterable[uuid.UUID]
+    ) -> list[User]:
+        stmt = select(User).where(User.company_id == company_id, User.id.in_(user_ids))
+        return list(self.db.execute(stmt).scalars().all())
+
+    def list_active_for_company(self, company_id: uuid.UUID) -> list[User]:
+        """Unpaginated — feeds the company-wide live tracking map (Owner)."""
+        stmt = select(User).where(
+            User.company_id == company_id, User.status == UserStatus.ACTIVE
+        )
         return list(self.db.execute(stmt).scalars().all())
 
     def list_for_company(

@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest*)",
+      "Bash(pytest*)",
+      "Bash(python3 *)",
+      "Bash(pip install*)",
+      "Bash(alembic upgrade*)",
+      "Bash(alembic current*)",
+      "Bash(alembic history*)",
+      "Bash(alembic heads*)",
+      "Bash(uvicorn *)",
+      "Bash(docker compose *)",
+      "Bash(docker ps*)",
+      "Bash(docker logs*)",
+      "Bash(docker info*)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -s http://localhost:*)",
+      "Read(*)"
+    ]
+  }
+}

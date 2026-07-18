@@ -76,3 +76,18 @@ def require_roles(*roles: Role) -> Callable[[User], User]:
         return current_user
 
     return _guard
+
+
+def require_any_permission(*permissions: Permission) -> Callable[[User], User]:
+    """Dependency factory allowing access if the role has ANY of the given
+    permissions (e.g. project:view_all OR project:view_assigned)."""
+
+    def _guard(current_user: User = Depends(get_current_user)) -> User:
+        if not any(has_permission(current_user.role, p) for p in permissions):
+            names = ", ".join(p.value for p in permissions)
+            raise PermissionDeniedError(
+                f"Your role ({current_user.role.value}) lacks all of: {names}."
+            )
+        return current_user
+
+    return _guard

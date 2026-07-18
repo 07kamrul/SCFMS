@@ -27,6 +27,7 @@ from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import Role, UserStatus
 
 if TYPE_CHECKING:
+    from app.models.assignment import Assignment
     from app.models.company import Company
     from app.models.refresh_token import RefreshToken
 
@@ -78,6 +79,9 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     company: Mapped["Company"] = relationship(back_populates="users")
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    assignments: Mapped[list["Assignment"]] = relationship(
+        back_populates="user", foreign_keys="Assignment.user_id"
     )
 
     @property

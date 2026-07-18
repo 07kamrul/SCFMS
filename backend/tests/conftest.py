@@ -20,7 +20,24 @@ from app.api.deps import get_current_user  # noqa: F401  (imported for clarity)
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
-from app.models import Company, CompanySettings, User  # noqa: F401 register models
+from app.models import (  # noqa: F401 register models
+    Assignment,
+    Company,
+    CompanySettings,
+    DailyProgressReport,
+    Issue,
+    IssueComment,
+    IssuePhoto,
+    IssueStatusHistory,
+    LocationPoint,
+    ProgressPhoto,
+    ProgressReportStageEntry,
+    Project,
+    Task,
+    TaskComment,
+    TaskPhoto,
+    User,
+)
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",

@@ -3,10 +3,27 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, companies, health, users
+from app.api.v1 import (
+    assignments,
+    auth,
+    companies,
+    health,
+    issues,
+    locations,
+    progress_reports,
+    projects,
+    tasks,
+    users,
+)
 
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(companies.router)
 api_router.include_router(users.router)
+api_router.include_router(projects.router)
+api_router.include_router(assignments.router)
+api_router.include_router(locations.router)
+api_router.include_router(tasks.router)
+api_router.include_router(issues.router)
+api_router.include_router(progress_reports.router)

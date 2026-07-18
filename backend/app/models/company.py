@@ -13,6 +13,7 @@ from app.db.base import Base
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.project import Project
     from app.models.user import User
 
 
@@ -26,6 +27,7 @@ class Company(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     users: Mapped[list["User"]] = relationship(back_populates="company")
+    projects: Mapped[list["Project"]] = relationship(back_populates="company")
     company_settings: Mapped["CompanySettings"] = relationship(
         back_populates="company",
         uselist=False,
@@ -53,5 +55,8 @@ class CompanySettings(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     tracking_end_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
     location_retention_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
     allow_multiple_devices: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # A user's latest point older than this is reported as OFFLINE rather than
+    # a stale geofence status.
+    offline_after_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
 
     company: Mapped["Company"] = relationship(back_populates="company_settings")

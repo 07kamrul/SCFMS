@@ -10,6 +10,13 @@ from functools import lru_cache
 from pydantic import Field, PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_ASYNC_TO_SYNC_DRIVER = {
+    "postgresql+asyncpg": "postgresql+psycopg",
+    "postgres+asyncpg": "postgresql+psycopg",
+    "postgresql": "postgresql+psycopg",
+    "postgres": "postgresql+psycopg",
+}
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -33,6 +40,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     # Database
+    # Preferred: set DATABASE_URL directly (e.g. postgresql+psycopg://user:pass@host:5432/db,
+    # with special characters in the password percent-encoded — "@" as "%40").
+    # If unset, the discrete POSTGRES_* fields below are combined instead (used by
+    # docker-compose's bundled db service and the test suite).
+    DATABASE_URL: str | None = None
     POSTGRES_HOST: str = "db"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "scfms"
@@ -62,6 +74,14 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
+        if self.DATABASE_URL:
+            # The app uses sync SQLAlchemy (psycopg3) throughout — see db/session.py.
+            # Normalize an asyncpg-style URL to the psycopg driver so a URL copied
+            # from async-style docs/examples still works with this codebase.
+            url = self.DATABASE_URL
+            scheme, _, rest = url.partition("://")
+            driver = _ASYNC_TO_SYNC_DRIVER.get(scheme, scheme)
+            return f"{driver}://{rest}"
         return str(
             PostgresDsn.build(
                 scheme="postgresql+psycopg",
