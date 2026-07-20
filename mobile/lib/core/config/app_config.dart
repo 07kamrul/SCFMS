@@ -10,6 +10,6 @@ class AppConfig {
   /// no flags behaves exactly as before this config was introduced.
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:18000/api/v1',
+    defaultValue: 'http://144.79.249.166:18000/api/v1',
   );
 }
