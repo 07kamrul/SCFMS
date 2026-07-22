@@ -57,7 +57,6 @@ class CompanySettings(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     tracking_start_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=0)   # local hour 0-23
     tracking_end_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=24)    # exclusive upper bound, 1-24
     location_retention_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
-    allow_multiple_devices: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # A user's latest point older than this is reported as OFFLINE rather than
     # a stale geofence status.
     offline_after_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=15)

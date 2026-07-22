@@ -17,7 +17,6 @@ class LoginRequest(BaseModel):
     email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=32)
     password: str = Field(min_length=1, max_length=128)
-    device_id: str | None = Field(default=None, max_length=255)
 
     @model_validator(mode="after")
     def _require_one_identifier(self) -> "LoginRequest":

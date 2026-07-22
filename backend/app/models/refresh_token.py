@@ -38,7 +38,6 @@ class RefreshToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
-    device_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -8,7 +8,6 @@ class CompanySettings {
     required this.trackingStartHour,
     required this.trackingEndHour,
     required this.locationRetentionDays,
-    required this.allowMultipleDevices,
     required this.offlineAfterMinutes,
   });
 
@@ -22,7 +21,6 @@ class CompanySettings {
   /// Hour of day (0-23) tracking ends.
   final int trackingEndHour;
   final int locationRetentionDays;
-  final bool allowMultipleDevices;
   final int offlineAfterMinutes;
 
   factory CompanySettings.fromJson(Map<String, dynamic> json) {
@@ -32,7 +30,6 @@ class CompanySettings {
       trackingStartHour: json['tracking_start_hour'] as int,
       trackingEndHour: json['tracking_end_hour'] as int,
       locationRetentionDays: json['location_retention_days'] as int,
-      allowMultipleDevices: json['allow_multiple_devices'] as bool,
       offlineAfterMinutes: json['offline_after_minutes'] as int,
     );
   }
@@ -62,7 +59,6 @@ class CompanySettingsRepository {
     int? trackingStartHour,
     int? trackingEndHour,
     int? locationRetentionDays,
-    bool? allowMultipleDevices,
     int? offlineAfterMinutes,
   }) async {
     final envelope = await _apiClient.patch<CompanySettings>(
@@ -76,8 +72,6 @@ class CompanySettingsRepository {
         if (trackingEndHour != null) 'tracking_end_hour': trackingEndHour,
         if (locationRetentionDays != null)
           'location_retention_days': locationRetentionDays,
-        if (allowMultipleDevices != null)
-          'allow_multiple_devices': allowMultipleDevices,
         if (offlineAfterMinutes != null)
           'offline_after_minutes': offlineAfterMinutes,
       },

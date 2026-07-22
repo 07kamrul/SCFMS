@@ -33,7 +33,6 @@ class CompanySettingsPublic(BaseModel):
     tracking_start_hour: int
     tracking_end_hour: int
     location_retention_days: int
-    allow_multiple_devices: bool
     offline_after_minutes: int
 
     model_config = {"from_attributes": True}
@@ -45,5 +44,4 @@ class CompanySettingsUpdate(BaseModel):
     tracking_start_hour: int | None = Field(default=None, ge=0, le=23)
     tracking_end_hour: int | None = Field(default=None, ge=0, le=23)
     location_retention_days: int | None = Field(default=None, ge=1, le=3650)
-    allow_multiple_devices: bool | None = None
     offline_after_minutes: int | None = Field(default=None, ge=1, le=1440)

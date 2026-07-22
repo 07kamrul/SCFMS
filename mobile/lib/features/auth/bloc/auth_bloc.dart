@@ -1,9 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile/core/network/api_exception.dart';
-import 'package:mobile/core/storage/secure_token_storage.dart';
-import 'package:mobile/features/notifications/data/notification_repository.dart';
 
 import '../data/auth_repository.dart';
 import 'auth_event.dart';
@@ -12,13 +8,7 @@ import 'auth_state.dart';
 /// Owns session state for the whole app: startup bootstrap, login, logout,
 /// and forced logout on session expiry.
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc(
-    this._authRepository, {
-    NotificationRepository? notificationRepository,
-    SecureTokenStorage? tokenStorage,
-  }) : _notificationRepository = notificationRepository,
-       _tokenStorage = tokenStorage,
-       super(const AuthInitial()) {
+  AuthBloc(this._authRepository) : super(const AuthInitial()) {
     on<AuthSessionRequested>(_onSessionRequested);
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
@@ -26,30 +16,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   final AuthRepository _authRepository;
-
-  /// Both null unless wired via DI — device-token registration is
-  /// best-effort plumbing for a future real push integration (the backend's
-  /// push dispatch is an intentional no-op stub today), so a missing wiring
-  /// or a failed call must never block login.
-  final NotificationRepository? _notificationRepository;
-  final SecureTokenStorage? _tokenStorage;
-
-  void _registerDeviceToken() {
-    final notifications = _notificationRepository;
-    final tokenStorage = _tokenStorage;
-    if (notifications == null || tokenStorage == null) return;
-    unawaited(() async {
-      try {
-        final deviceId = await tokenStorage.readOrCreateDeviceId();
-        await notifications.registerDeviceToken(
-          platform: 'android',
-          token: deviceId,
-        );
-      } on ApiException {
-        // Best-effort — a failure here must never affect the auth flow.
-      }
-    }());
-  }
 
   Future<void> _onSessionRequested(
     AuthSessionRequested event,
@@ -66,7 +32,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = await _authRepository.fetchMe();
       emit(AuthAuthenticated(user));
-      _registerDeviceToken();
     } on ApiException {
       // ApiClient already attempted a silent refresh internally on a 401;
       // reaching here means that refresh also failed, so the session is
@@ -87,7 +52,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         password: event.password,
       );
       emit(AuthAuthenticated(response.user));
-      _registerDeviceToken();
     } on ApiException catch (e) {
       final message = e.isAccountLocked
           ? 'Too many failed attempts — try again in 15 minutes.'

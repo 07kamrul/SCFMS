@@ -1,5 +1,4 @@
 import 'package:mobile/core/di/injection.dart';
-import 'package:mobile/features/notifications/data/notification_repository.dart';
 
 import 'bloc/auth_bloc.dart';
 import 'data/auth_repository.dart';
@@ -11,11 +10,5 @@ import 'data/auth_repository.dart';
 /// observe the same instance.
 void registerAuthDependencies() {
   getIt.registerLazySingleton(() => AuthRepository(getIt(), getIt()));
-  getIt.registerLazySingleton(
-    () => AuthBloc(
-      getIt(),
-      notificationRepository: getIt<NotificationRepository>(),
-      tokenStorage: getIt(),
-    ),
-  );
+  getIt.registerLazySingleton(() => AuthBloc(getIt()));
 }

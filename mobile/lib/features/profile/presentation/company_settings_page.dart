@@ -37,7 +37,6 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
   final _retentionDaysController = TextEditingController();
   final _offlineAfterController = TextEditingController();
   bool _trackingEnabled = false;
-  bool _allowMultipleDevices = false;
   int _trackingStartHour = 0;
   int _trackingEndHour = 23;
 
@@ -59,7 +58,6 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
     _retentionDaysController.text = settings.locationRetentionDays.toString();
     _offlineAfterController.text = settings.offlineAfterMinutes.toString();
     _trackingEnabled = settings.trackingEnabled;
-    _allowMultipleDevices = settings.allowMultipleDevices;
     _trackingStartHour = settings.trackingStartHour;
     _trackingEndHour = settings.trackingEndHour;
   }
@@ -108,10 +106,6 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
         locationRetentionDays:
             locationRetentionDays != original.locationRetentionDays
             ? locationRetentionDays
-            : null,
-        allowMultipleDevices:
-            _allowMultipleDevices != original.allowMultipleDevices
-            ? _allowMultipleDevices
             : null,
         offlineAfterMinutes: offlineAfterMinutes != original.offlineAfterMinutes
             ? offlineAfterMinutes
@@ -221,15 +215,6 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
             labelText: 'Location retention',
             suffixText: 'days',
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        SwitchListTile(
-          value: _allowMultipleDevices,
-          onChanged: readOnly
-              ? null
-              : (value) => setState(() => _allowMultipleDevices = value),
-          title: const Text('Allow multiple devices'),
-          contentPadding: EdgeInsets.zero,
         ),
         const SizedBox(height: AppSpacing.md),
         TextField(

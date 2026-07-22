@@ -42,7 +42,6 @@ class AuthService:
         email: str | None,
         phone: str | None,
         password: str,
-        device_id: str | None,
     ) -> LoginResponse:
         candidates = self.users.find_login_candidates(email=email, phone=phone)
         # Pick the first candidate whose password matches (identifiers are
@@ -64,7 +63,7 @@ class AuthService:
         if needs_rehash(user.hashed_password):
             user.hashed_password = hash_password(password)
 
-        tokens = self._issue_token_pair(user, device_id=device_id)
+        tokens = self._issue_token_pair(user)
         self.db.commit()
         return LoginResponse(user=UserPublic.model_validate(user), tokens=tokens)
 
@@ -99,7 +98,7 @@ class AuthService:
             user.failed_login_attempts = 0
 
     # ── Refresh (rotation with reuse detection) ────────────────────────────
-    def refresh(self, *, raw_refresh_token: str, device_id: str | None) -> TokenPair:
+    def refresh(self, *, raw_refresh_token: str) -> TokenPair:
         token_hash = hash_refresh_token(raw_refresh_token)
         stored = self.tokens.get_by_hash(token_hash)
         if stored is None:
@@ -120,7 +119,7 @@ class AuthService:
         if user is None or user.status != UserStatus.ACTIVE:
             raise AuthenticationError("Account is no longer active.")
 
-        new_pair = self._issue_token_pair(user, device_id=device_id or stored.device_id)
+        new_pair = self._issue_token_pair(user)
         # Rotate: revoke the old token, link to the replacement.
         latest = user.refresh_tokens[-1] if user.refresh_tokens else None
         self.tokens.revoke(stored, replaced_by=latest.id if latest else None)
@@ -150,7 +149,7 @@ class AuthService:
         self.db.commit()
 
     # ── Helpers ─────────────────────────────────────────────────────────
-    def _issue_token_pair(self, user: User, *, device_id: str | None) -> TokenPair:
+    def _issue_token_pair(self, user: User) -> TokenPair:
         access = create_access_token(
             user_id=user.id, company_id=user.company_id, role=user.role.value
         )
@@ -159,7 +158,6 @@ class AuthService:
             user_id=user.id,
             company_id=user.company_id,
             token_hash=hash_refresh_token(raw_refresh),
-            device_id=device_id,
             expires_at=refresh_token_expiry(),
         )
         self.tokens.add(record)

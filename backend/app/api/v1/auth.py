@@ -28,16 +28,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> Envelope[Logi
         email=payload.email,
         phone=payload.phone,
         password=payload.password,
-        device_id=payload.device_id,
     )
     return ok(result)
 
 
 @router.post("/refresh", response_model=Envelope[TokenPair])
 def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> Envelope[TokenPair]:
-    tokens = AuthService(db).refresh(
-        raw_refresh_token=payload.refresh_token, device_id=None
-    )
+    tokens = AuthService(db).refresh(raw_refresh_token=payload.refresh_token)
     return ok(tokens)
 
 
